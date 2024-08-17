@@ -1,0 +1,61 @@
+node {
+    // Define a parameter to take a name as input
+    properties([
+        parameters([
+            string(name: 'USERNAME', defaultValue: 'World', description: 'Enter your name')
+        ])
+    ])
+
+    // Set a timeout for the pipeline to fail if it exceeds 1 minute
+    timeout(time: 1, unit: 'MINUTES') {
+        try {
+            // Greet the user
+            stage('Greet User') {
+                echo "Hello, ${params.USERNAME}!"
+            }
+
+            // Clone the repository
+            stage('Clone Repository') {
+                echo 'Cloning spring3hibernate repository...'
+                git url: 'https://github.com/opstree/spring3hibernate.git'
+            }
+
+            // Count the number of words in README.md
+            stage('Count Words in README.md') {
+                echo 'Counting the number of words in README.md...'
+                def wordCount = sh(script: 'wc -w < README.md', returnStdout: true).trim()
+                echo "README.md has ${wordCount} words."
+            }
+
+            // Option to fail the pipeline based on user input
+            stage('User Input for Pipeline Failure') {
+                def shouldFail = input message: 'Should the pipeline fail?', ok: 'Proceed', parameters: [booleanParam(defaultValue: false, description: 'Check this to fail the pipeline', name: 'FAIL')]
+                if (shouldFail) {
+                    error('Pipeline failed by user request.')
+                } else {
+                    echo 'User chose to proceed without failing the pipeline.'
+                }
+            }
+
+            // Print success message
+            stage('Success') {
+                echo 'Pipeline executed successfully!'
+            }
+
+        } catch (err) {
+            // Handle failure message
+            stage('Failure') {
+                echo 'Pipeline execution failed.'
+                throw err
+            }
+        } finally {
+            // Clean up the workspace after execution
+            cleanWs()
+        }
+    }
+}
+
+// Set a trigger to run the pipeline every 5 minutes
+triggers {
+    cron('H/5 * * * *') // Executes the pipeline every 5 minutes
+}
